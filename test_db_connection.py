@@ -3,11 +3,11 @@
 
 import asyncio
 import sys
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.asynchronous.mongo_client import AsyncMongoClient
 from app.config import settings
 
 
-async def test_connection():
+async def check_connection():
     """Test MongoDB connection and basic operations."""
     print("🔍 Testing MongoDB Connection")
     print("=" * 50)
@@ -17,7 +17,7 @@ async def test_connection():
 
     try:
         # Create client
-        client = AsyncIOMotorClient(settings.mongodb_uri)
+        client = AsyncMongoClient(settings.mongodb_uri)
         print("✓ Client created")
 
         # Test ping
@@ -39,7 +39,7 @@ async def test_connection():
         print(f"✓ MongoDB version: {server_info.get('version', 'unknown')}")
 
         # Close connection
-        client.close()
+        await client.aclose()
         print("✓ Connection closed")
         print("\n✅ All tests passed!")
         return True
@@ -51,5 +51,5 @@ async def test_connection():
 
 
 if __name__ == "__main__":
-    success = asyncio.run(test_connection())
+    success = asyncio.run(check_connection())
     sys.exit(0 if success else 1)

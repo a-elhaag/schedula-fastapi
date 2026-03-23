@@ -80,6 +80,11 @@ async def generate_schedule(
             availability_data=availability,
             rooms_data=rooms,
             weights=weights,
+            section_type_durations=(
+                request.section_type_durations.model_dump(exclude_none=True)
+                if request.section_type_durations
+                else None
+            ),
         )
 
         hard_violations, soft_penalty, schedule_entries = solver.solve()

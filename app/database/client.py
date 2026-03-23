@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
+from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from app.config import settings
 

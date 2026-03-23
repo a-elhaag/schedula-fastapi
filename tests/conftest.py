@@ -1,24 +1,23 @@
 """Pytest fixtures and test configuration."""
 
 import pytest
-from httpx import AsyncClient
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
-from app.config import settings
 
 
 @pytest.fixture
 async def test_client():
     """FastAPI test client."""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 
 
 @pytest.fixture
 async def mock_db():
     """Mock MongoDB database."""
-    # TODO: Create mock Motor database for testing
+    # TODO: Create mock PyMongo async database for testing (mock AsyncDatabase)
     pass
 
 

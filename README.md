@@ -7,7 +7,7 @@ Campus-wide course scheduling solver for higher education institutions.
 - ✓ Constraint-based schedule generation (OR-Tools)
 - ✓ 9 hard constraints (no conflicts, capacity, day-offs)
 - ✓ 4 soft constraints (break windows, clustering, spread)
-- ✓ Async MongoDB integration (Motor)
+- ✓ Async MongoDB integration (PyMongo Async)
 - ✓ FastAPI stateless backend
 - ✓ Azure Container Apps deployment
 
@@ -71,7 +71,7 @@ app/
 │   ├── schedule.py
 │   └── solver.py
 ├── database/            # MongoDB async operations
-│   ├── client.py        # Motor connection
+│   ├── client.py        # PyMongo async connection
 │   └── queries.py       # Reusable query functions
 ├── routes/              # API endpoints
 │   ├── health.py

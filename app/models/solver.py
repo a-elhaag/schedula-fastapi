@@ -11,9 +11,16 @@ class SolverWeights(BaseModel):
     campus_clustering: int = Field(default=40, ge=0)
 
 
+class SectionTypeDurations(BaseModel):
+    lecture: Optional[int] = Field(default=None, ge=1, description="Duration in minutes")
+    lab: Optional[int] = Field(default=None, ge=1, description="Duration in minutes")
+    tutorial: Optional[int] = Field(default=None, ge=1, description="Duration in minutes")
+
+
 class GenerateScheduleRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     institution_id: str
     term_label: str
     weights: Optional[SolverWeights] = None
+    section_type_durations: Optional[SectionTypeDurations] = None
