@@ -3,6 +3,7 @@
 ## ✅ Completed
 
 ### 1. GitHub Secrets Created
+
 All required secrets have been added to your GitHub repository using `gh secret set`:
 
 - **AZURE_CREDENTIALS** ✅ - Service principal with Contributor role
@@ -15,14 +16,18 @@ All required secrets have been added to your GitHub repository using `gh secret 
 - **REGISTRY_PASSWORD** ✅ - ACR admin password
 
 ### 2. GitHub Actions Workflow
+
 The deployment workflow `.github/workflows/deploy.yml` has been:
+
 - ✅ Created with proper trigger conditions
 - ✅ Updated with correct resource group name (schedula)
 - ✅ Committed to git
 - ✅ Pushed to main branch (commit: d7626c8)
 
 ### 3. Workflow Triggers
+
 The workflow automatically runs on:
+
 - ✅ Push to `main` branch with changes to:
   - `app/**`
   - `requirements.txt`
@@ -34,11 +39,13 @@ The workflow automatically runs on:
 ## Workflow Jobs
 
 ### Job 1: Test (ubuntu-latest)
+
 - Sets up Python 3.12
 - Installs dependencies
 - Runs pytest on `tests/` directory
 
 ### Job 2: Build and Deploy (ubuntu-latest, runs after test passes)
+
 - Logs into Azure with service principal
 - Logs into Azure Container Registry
 - Builds Docker image with metadata
@@ -50,6 +57,7 @@ The workflow automatically runs on:
 - Verifies deployment with health check
 
 ## Repository Links
+
 - **GitHub Repo**: https://github.com/a-elhaag/schedula-fastapi
 - **Actions Page**: https://github.com/a-elhaag/schedula-fastapi/actions
 - **Workflow File**: https://github.com/a-elhaag/schedula-fastapi/blob/main/.github/workflows/deploy.yml
@@ -57,26 +65,32 @@ The workflow automatically runs on:
 ## Next Steps
 
 ### Check Workflow Status
+
 1. Go to: https://github.com/a-elhaag/schedula-fastapi/actions
 2. Click on latest "Deploy to Azure Container Apps" workflow
 3. View logs for each job
 
 ### Monitor Production
+
 - **API URL**: https://schedula-api.happysand-30861dbc.uaenorth.azurecontainerapps.io
 - **Health Endpoint**: https://schedula-api.happysand-30861dbc.uaenorth.azurecontainerapps.io/health
 - **Docs**: https://schedula-api.happysand-30861dbc.uaenorth.azurecontainerapps.io/docs
 
 ### Trigger Manual Deployment
+
 Run from command line:
+
 ```bash
 gh workflow run deploy.yml --ref main
 ```
 
 Or via GitHub UI:
+
 1. Go to Actions → Deploy to Azure Container Apps
 2. Click "Run workflow"
 
 ## Environment Variables (Configured in Container App)
+
 - MONGODB_URI
 - MONGODB_DB_NAME
 - DEBUG
@@ -88,6 +102,7 @@ Or via GitHub UI:
 - SOFT_WEIGHT_CAMPUS_CLUSTERING
 
 ## Security Notes
+
 ⚠️ Service principal credentials are stored as GitHub Secrets (encrypted)
 ⚠️ ACR password is stored as GitHub Secret (encrypted)
 ⚠️ Never commit credentials to the repository
