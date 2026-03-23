@@ -42,6 +42,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'site'
+          artifact_name: 'site'
 
   deploy:
     needs: build
@@ -53,3 +54,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v2
+        with:
+          artifact_name: 'site'
