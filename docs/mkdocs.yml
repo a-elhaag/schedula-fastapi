@@ -1,7 +1,7 @@
 site_name: Schedula Solver API
 site_description: Complete API documentation for the Schedula schedule solver
 site_author: Schedula Team
-site_url: https://your-org.github.io/schedula-fastapi/
+site_url: https://a-elhaag.github.io/schedula-fastapi/
 
 theme:
   name: material
@@ -61,4 +61,4 @@ extra:
   version: 0.1.0
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/your-org/schedula-fastapi
+      link: https://github.com/a-elhaag/schedula-fastapi
