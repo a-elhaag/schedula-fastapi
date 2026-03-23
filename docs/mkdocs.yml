@@ -2,6 +2,7 @@ site_name: Schedula Solver API
 site_description: Complete API documentation for the Schedula schedule solver
 site_author: Schedula Team
 site_url: https://a-elhaag.github.io/schedula-fastapi/
+docs_dir: .
 
 theme:
   name: material
