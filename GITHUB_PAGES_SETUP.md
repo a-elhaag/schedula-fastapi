@@ -1,53 +1,195 @@
 # 🚀 GitHub Pages Documentation Setup
 
-**Complete GitHub Pages site with tabbed documentation created!**
+**Complete GitHub Pages site with automated deployment!**
 
 ---
 
-## 📦 What Was Created
+## ✅ What Was Just Set Up
 
-### Files Created:
+### Files Created/Updated:
 
 ```
 docs/
-├── index.md              # Main documentation with tabs
-├── mkdocs.yml           # Configuration for GitHub Pages
-└── README.md            # Setup instructions
+├── index.md              # Main documentation
+├── mkdocs.yml           # Configuration (UPDATED with correct URL)
+├── setup.md
+├── integration.md
+├── api.md
+├── constraints.md
+├── deployment.md
+├── testing.md
+└── troubleshooting.md
 
 .github/workflows/
-└── deploy-docs.yml      # Auto-deployment to GitHub Pages
+├── deploy.yml           # API deployment workflow
+├── docs.yml             # ✨ NEW: Documentation build & deploy
+└── (other workflows)
 ```
+
+### Configuration Updated:
+- ✅ `mkdocs.yml` site_url: https://a-elhaag.github.io/schedula-fastapi/
+- ✅ `mkdocs.yml` GitHub links updated
+- ✅ GitHub Actions workflow: `.github/workflows/docs.yml`
 
 ---
 
-## 🎯 What Your Frontend Team Will See
+## 📋 Final Step: Enable GitHub Pages
 
-A professional documentation site with **tabbed navigation**:
+This is a ONE-TIME setup in your GitHub repository settings.
 
+### Go to Repository Settings:
+👉 https://github.com/a-elhaag/schedula-fastapi/settings/pages
+
+### Configure Source (Choose ONE):
+
+**RECOMMENDED - GitHub Actions (Modern):**
 ```
-┌─────────────────────────────────────────────────────┐
-│ Schedula Solver API Documentation                   │
-├─────────────────────────────────────────────────────┤
-│ Setup │ Integration │ API Reference │ Constraints   │
-│ Deployment │ Testing │ Troubleshooting │ Resources  │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  🚀 Quick Links                                     │
-│                                                     │
-│  Frontend Developer - 30 min setup                  │
-│  Backend/DevOps - Production deployment             │
-│  API Consumer - Just need the reference             │
-│                                                     │
-└─────────────────────────────────────────────────────┘
+Source: GitHub Actions
 ```
+This uses our `.github/workflows/docs.yml` workflow automatically.
+
+**OR Traditional - Deploy from Branch:**
+```
+Branch: main
+Folder: /(root)
+```
+
+### Click Save
+
+That's it! GitHub will:
+1. Trigger the docs workflow
+2. Build mkdocs
+3. Deploy to Pages
+4. Pages available in 1-2 minutes
 
 ---
 
-## 🔧 Setup Instructions
+## 🌐 Your Documentation Site
 
-### Step 1: Enable GitHub Pages
+Once enabled, docs will be at:
+```
+https://a-elhaag.github.io/schedula-fastapi/
+```
 
-1. Go to your GitHub repository settings
+### Pages Included:
+| Page | URL |
+|------|-----|
+| Home | `/` |
+| Setup | `/setup/` |
+| Integration | `/integration/` |  
+| API Reference | `/api/` |
+| Constraints | `/constraints/` |
+| Deployment | `/deployment/` |
+| Testing | `/testing/` |
+| Troubleshooting | `/troubleshooting/` |
+
+---
+
+## 🔄 Auto-Deploy Process
+
+When you push documentation changes:
+
+```
+1. Edit docs/index.md (or any .md file)
+          ↓
+2. git commit && git push origin main
+          ↓
+3. GitHub detects changes to docs/
+          ↓
+4. Workflow .github/workflows/docs.yml triggers
+          ↓
+5. Builds mkdocs site to static HTML
+          ↓
+6. Deploys to GitHub Pages
+          ↓
+7. 📝 Docs updated at https://a-elhaag.github.io/schedula-fastapi/
+   (takes ~1-2 minutes)
+```
+
+### Trigger Conditions:
+- ✅ Push to `main` with changes to `docs/`
+- ✅ Changes to `mkdocs.yml`
+- ✅ Changes to `.github/workflows/docs.yml`
+- ✅ Manual trigger via **Actions → Build and Deploy Documentation → Run workflow**
+
+---
+
+## 📊 Monitor Deployment
+
+View build & deployment status:
+👉 https://github.com/a-elhaag/schedula-fastapi/actions
+
+Look for: **"Build and Deploy Documentation"**
+
+Click to see:
+- Build logs
+- Dependencies installed
+- Build success/failure
+- Deployment status
+
+---
+
+## 🎨 Documentation Features
+
+The docs site includes:
+
+✅ **Material Theme**
+- Light/Dark mode toggle
+- Mobile responsive
+- Professional styling
+
+✅ **Search**
+- Full-text search across all docs
+- Search suggestions
+
+✅ **Code Highlighting**
+- Syntax highlighting
+- Copy-to-clipboard for code blocks
+- Code selection support
+
+✅ **Navigation**
+- Tabbed navigation
+- Left sidebar with hierarchy
+- "Back to top" button
+- Table of contents per page
+
+✅ **Content**
+- Markdown support
+- Tables, footnotes
+- Code snippets with language highlighting
+- Awesome Pages plugin for smart navigation
+
+---
+
+## 📝 How to Update Documentation
+
+### Add New Page:
+```bash
+# Create new markdown file
+echo "# New Topic" > docs/new-topic.md
+
+# Update mkdocs.yml nav section to include it
+```
+
+### Edit Existing Page:
+```bash
+# Simply edit the file
+vim docs/api.md
+
+# Push changes
+git add docs/api.md
+git commit -m "docs: Update API documentation"
+git push origin main
+```
+
+### The workflow automatically:
+- Rebuilds the site
+- Deploys updates
+- Updates live in 1-2 minutes
+
+---
+
+## 🏗️ Project Structure
 2. Scroll to **Pages** section
 3. Set source to: **GitHub Actions**
 4. Save
