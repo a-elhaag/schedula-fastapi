@@ -1,0 +1,216 @@
+{
+  "info": {
+    "_postman_id": "schedula-api-collection",
+    "name": "Schedula Solver API",
+    "description": "Complete API endpoints for the Schedula schedule solver",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Quick liveness check"
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health/ready",
+              "host": ["{{baseUrl}}"],
+              "path": ["health", "ready"]
+            },
+            "description": "Check if API and MongoDB are ready"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Schedule Generation",
+      "item": [
+        {
+          "name": "Generate Schedule (Basic)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution_id\": \"test-inst-001\",\n  \"term_label\": \"fall-2024\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/schedule/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["schedule", "generate"]
+            },
+            "description": "Generate schedule with default weights"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Schedule (Custom Weights)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution_id\": \"test-inst-001\",\n  \"term_label\": \"fall-2024\",\n  \"weights\": {\n    \"break_window\": 200,\n    \"consecutive_slots\": 150,\n    \"session_spread\": 40,\n    \"campus_clustering\": 30\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/schedule/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["schedule", "generate"]
+            },
+            "description": "Generate schedule prioritizing staff breaks and consecutive teaching"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Schedule (Custom Durations)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution_id\": \"test-inst-001\",\n  \"term_label\": \"fall-2024\",\n  \"section_type_durations\": {\n    \"lecture\": 75,\n    \"lab\": 120,\n    \"tutorial\": 45\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/schedule/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["schedule", "generate"]
+            },
+            "description": "Generate schedule with custom session durations"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Schedule (Full Options)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution_id\": \"test-inst-001\",\n  \"term_label\": \"fall-2024\",\n  \"weights\": {\n    \"break_window\": 100,\n    \"consecutive_slots\": 80,\n    \"session_spread\": 60,\n    \"campus_clustering\": 40\n  },\n  \"section_type_durations\": {\n    \"lecture\": 60,\n    \"lab\": 90,\n    \"tutorial\": 50\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/schedule/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["schedule", "generate"]
+            },
+            "description": "Generate schedule with all options specified"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Schedule (Lab-Heavy)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution_id\": \"test-inst-001\",\n  \"term_label\": \"fall-2024\",\n  \"weights\": {\n    \"break_window\": 50,\n    \"consecutive_slots\": 150,\n    \"session_spread\": 40,\n    \"campus_clustering\": 200\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/schedule/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["schedule", "generate"]
+            },
+            "description": "Optimize for lab clustering and consecutive sessions"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Schedule (Staff Wellness)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution_id\": \"test-inst-001\",\n  \"term_label\": \"fall-2024\",\n  \"weights\": {\n    \"break_window\": 300,\n    \"consecutive_slots\": 50,\n    \"session_spread\": 100,\n    \"campus_clustering\": 30\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/schedule/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["schedule", "generate"]
+            },
+            "description": "Prioritize staff breaks and session spread for wellness"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate Schedule (Non-existent Institution)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"institution_id\": \"nonexistent-inst\",\n  \"term_label\": \"fall-2024\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/schedule/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["schedule", "generate"]
+            },
+            "description": "Test error handling - should return 404"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ]
+}
