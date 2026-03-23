@@ -1,8 +1,14 @@
 """Health check routes."""
 
-from fastapi import APIRouter
+import logging
 from datetime import datetime, timezone
 
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
+from app.database.client import get_db
+
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/health", tags=["health"])
 
 
@@ -18,16 +24,17 @@ async def health_check():
 @router.get("/ready")
 async def readiness_check():
     """Readiness check (includes MongoDB connection)."""
-    from app.database.client import get_db
-
     try:
         db = get_db()
-        # Quick ping to verify DB is accessible
         await db.command("ping")
         return {"status": "ready", "database": "connected"}
     except Exception as e:
-        return {
-            "status": "not_ready",
-            "database": "disconnected",
-            "error": str(e),
-        }, 503
+        logger.warning(f"Readiness check failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "not_ready",
+                "database": "disconnected",
+                "error": str(e),
+            },
+        )

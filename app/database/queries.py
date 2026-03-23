@@ -68,6 +68,7 @@ async def get_constraints(db: AsyncDatabase, institution_id: str) -> dict[str, A
     return await db["constraints"].find_one(
         {"institution_id": institution_id, **_SOFT_DELETE},
         projection={
+            "_id": 0,
             "break_window": 1, "consecutive_slots": 1,
             "session_spread": 1, "campus_clustering": 1,
         },

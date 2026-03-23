@@ -2,8 +2,23 @@
 
 from __future__ import annotations
 
-from ortools.sat.python import cp_model
+import logging
+from dataclasses import dataclass
 from typing import Any
+
+from ortools.sat.python import cp_model
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TimeGrid:
+    """Time grid configuration for solver."""
+    num_slots_per_day: int
+    num_days: int
+    working_days: list[int]
+    start_hour: int
+    inst_min: int  # slot duration in minutes
 
 
 class ScheduleSolver:
@@ -11,6 +26,7 @@ class ScheduleSolver:
         self.time_limit_seconds = time_limit_seconds
         self.num_workers = num_workers
         self._has_objective = False
+        self._section_index: dict[str, dict] = {}
 
     # ──────────────────────────────────────────────────────────────────────
     # Entry point
@@ -35,15 +51,23 @@ class ScheduleSolver:
             a["staff_id"]: a for a in availability_data
         }
 
+        # Build section index for O(1) lookup
+        self._section_index = {s["_id"]: s for s in courses_data}
+
         # Time grid (all durations measured in "slot units")
         start_h: int = institution_data.get("daily_start_hour", 9)
         end_h: int = institution_data.get("daily_end_hour", 17)
         inst_min: int = institution_data.get("slot_duration_minutes", 60)
-        self.num_slots_per_day: int = (end_h - start_h) * 60 // inst_min
-        self.working_days: list[int] = institution_data.get("working_days", [0, 1, 2, 3, 4])
-        self.num_days: int = len(self.working_days)
-        self.inst_min: int = inst_min
-        self.start_hour: int = start_h
+        num_slots_per_day: int = (end_h - start_h) * 60 // inst_min
+        working_days: list[int] = institution_data.get("working_days", [0, 1, 2, 3, 4])
+
+        self.time_grid = TimeGrid(
+            num_slots_per_day=num_slots_per_day,
+            num_days=len(working_days),
+            working_days=working_days,
+            start_hour=start_h,
+            inst_min=inst_min,
+        )
         self.section_type_durations: dict[str, int] = section_type_durations or {}
 
         # Pre-compute indexes (H3, H4 pre-filtering done here)
@@ -51,8 +75,9 @@ class ScheduleSolver:
         self._build_staff_index()
         self._skipped: set[str] = set()
 
-        # Create session variables
+        # Pre-compute indexes and create session variables
         self._create_sessions()
+        logger.debug(f"Built model with {len(self.sessions)} sessions, {len(self._skipped)} skipped")
 
         # Hard constraints
         self._add_h1_h2_no_overlap()
@@ -112,7 +137,7 @@ class ScheduleSolver:
         self.sessions: dict[tuple[str, int], dict] = {}
         # room_id → list of optional intervals (for H1 AddNoOverlap)
         self.room_opt_ivs: dict[str, list] = {}
-        total = self.num_days * self.num_slots_per_day
+        total = self.time_grid.num_days * self.time_grid.num_slots_per_day
 
         for section in self.courses:
             sid = section["_id"]
@@ -124,18 +149,18 @@ class ScheduleSolver:
             k = section.get("slots_per_week", 1)
             sec_min = section.get("slot_duration_minutes")
             if sec_min is None:
-                sec_min = self.section_type_durations.get(section.get("section_type", ""), self.inst_min)
-            dur = max(1, (sec_min + self.inst_min - 1) // self.inst_min)   # duration in slot units
+                sec_min = self.section_type_durations.get(section.get("section_type", ""), self.time_grid.inst_min)
+            dur = max(1, (sec_min + self.time_grid.inst_min - 1) // self.time_grid.inst_min)   # duration in slot units
 
             for occ in range(k):
                 tag = f"{sid}_{occ}"
 
-                day_v = self.model.NewIntVar(0, self.num_days - 1, f"d_{tag}")
-                slot_v = self.model.NewIntVar(0, self.num_slots_per_day - dur, f"sl_{tag}")
+                day_v = self.model.NewIntVar(0, self.time_grid.num_days - 1, f"d_{tag}")
+                slot_v = self.model.NewIntVar(0, self.time_grid.num_slots_per_day - dur, f"sl_{tag}")
 
                 abs_s = self.model.NewIntVar(0, total - dur, f"as_{tag}")
                 abs_e = self.model.NewIntVar(dur, total, f"ae_{tag}")
-                self.model.Add(abs_s == day_v * self.num_slots_per_day + slot_v)
+                self.model.Add(abs_s == day_v * self.time_grid.num_slots_per_day + slot_v)
                 self.model.Add(abs_e == abs_s + dur)
 
                 iv = self.model.NewIntervalVar(abs_s, dur, abs_e, f"iv_{tag}")
@@ -184,9 +209,9 @@ class ScheduleSolver:
         """H5: staff weekly day-off is fully blocked."""
         for staff_id, avail in self.availability_map.items():
             day_off = avail.get("weekly_day_off")
-            if day_off is None or day_off not in self.working_days:
+            if day_off is None or day_off not in self.time_grid.working_days:
                 continue
-            day_off_idx = self.working_days.index(day_off)
+            day_off_idx = self.time_grid.working_days.index(day_off)
             for sec_id in self.staff_sections.get(staff_id, []):
                 sec = self._section(sec_id)
                 if not sec:
@@ -231,12 +256,12 @@ class ScheduleSolver:
         for staff_id, avail in self.availability_map.items():
             for win in avail.get("preferred_break_windows", []):
                 dow = win.get("day_of_week") if isinstance(win, dict) else win.day_of_week
-                if dow not in self.working_days:
+                if dow not in self.time_grid.working_days:
                     continue
-                day_idx = self.working_days.index(dow)
+                day_idx = self.time_grid.working_days.index(dow)
                 bk_s = self._time_to_slot(win.get("start_time") if isinstance(win, dict) else win.start_time)
                 bk_e = self._time_to_slot(win.get("end_time") if isinstance(win, dict) else win.end_time)
-                if bk_s >= bk_e or bk_s < 0 or bk_e > self.num_slots_per_day:
+                if bk_s >= bk_e or bk_s < 0 or bk_e > self.time_grid.num_slots_per_day:
                     continue
 
                 for sec_id in self.staff_sections.get(staff_id, []):
@@ -273,7 +298,7 @@ class ScheduleSolver:
         terms: list = []
 
         for staff_id, sec_ids in self.staff_sections.items():
-            staff_sess: list[dict] = []
+            staff_sess: list[tuple[str, int, dict]] = []
             for sec_id in sec_ids:
                 sec = self._section(sec_id)
                 if not sec:
@@ -281,11 +306,11 @@ class ScheduleSolver:
                 for occ in range(sec.get("slots_per_week", 1)):
                     s = self.sessions.get((sec_id, occ))
                     if s:
-                        staff_sess.append(s)
+                        staff_sess.append((sec_id, occ, s))
 
-            for i, sa in enumerate(staff_sess):
-                for sb in staff_sess[i + 1:]:
-                    tag = f"{staff_id}_{i}"
+            for i, (sec_a, occ_a, sa) in enumerate(staff_sess):
+                for j, (sec_b, occ_b, sb) in enumerate(staff_sess[i + 1:], start=i + 1):
+                    tag = f"{staff_id}_{sec_a}_{occ_a}_{sec_b}_{occ_b}"
                     # a immediately before b
                     ab = self.model.NewBoolVar(f"s2_ab_{tag}")
                     self.model.Add(sa["abs_e"] == sb["abs_s"]).OnlyEnforceIf(ab)
@@ -304,7 +329,7 @@ class ScheduleSolver:
     def _soft_s3_session_spread(self) -> list:
         """S3 (w=60): penalize slots_per_week > 1 sections scheduled on the same day."""
         w = self.weights.get("session_spread", 60)
-        terms: list = []
+        terms: list[Any] = []
 
         for section in self.courses:
             sid = section["_id"]
@@ -329,7 +354,7 @@ class ScheduleSolver:
         terms: list = []
 
         for staff_id, sec_ids in self.staff_sections.items():
-            for day_idx in range(self.num_days):
+            for day_idx in range(self.time_grid.num_days):
                 day_flags: list = []
                 for sec_id in sec_ids:
                     sec = self._section(sec_id)
@@ -360,6 +385,7 @@ class ScheduleSolver:
     # ──────────────────────────────────────────────────────────────────────
 
     def solve(self) -> tuple[int, float, list[dict[str, Any]]]:
+        """Solve the constraint model and return schedule."""
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = self.time_limit_seconds
         solver.parameters.num_search_workers = self.num_workers
@@ -367,19 +393,23 @@ class ScheduleSolver:
 
         status = solver.Solve(self.model)
 
+        if status == cp_model.INFEASIBLE:
+            logger.warning("Solver found problem INFEASIBLE")
+            return 1, float("inf"), []
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            logger.warning(f"Solver status: {status} (not OPTIMAL/FEASIBLE)")
             return 1, float("inf"), []
 
-        entries: list[dict] = []
+        entries: list[dict[str, Any]] = []
         for (sid, _occ), sess in self.sessions.items():
             day_idx = solver.Value(sess["day"])
             slot_idx = solver.Value(sess["slot"])
             r_idx = solver.Value(sess["room_v"])
             room_id = sess["room_ids"][r_idx]
 
-            day_of_week = self.working_days[day_idx]
-            start_min = self.start_hour * 60 + slot_idx * self.inst_min
-            end_min = start_min + sess["dur"] * self.inst_min
+            day_of_week = self.time_grid.working_days[day_idx]
+            start_min = self.time_grid.start_hour * 60 + slot_idx * self.time_grid.inst_min
+            end_min = start_min + sess["dur"] * self.time_grid.inst_min
 
             sec = self._section(sid)
             entries.append({
@@ -401,11 +431,12 @@ class ScheduleSolver:
     # ──────────────────────────────────────────────────────────────────────
 
     def _section(self, section_id: str) -> dict | None:
-        return next((s for s in self.courses if s["_id"] == section_id), None)
+        """Get section by ID using cached index."""
+        return self._section_index.get(section_id)
 
     def _collect_intervals(self, sec_ids: list[str]) -> list:
         """Collect all session IntervalVars for the given section IDs."""
-        ivs = []
+        ivs: list = []
         for sec_id in sec_ids:
             sec = self._section(sec_id)
             if not sec:
@@ -422,4 +453,4 @@ class ScheduleSolver:
             h, m = map(int, t.split(":"))
         else:
             h, m = t.hour, t.minute
-        return (h * 60 + m - self.start_hour * 60) // self.inst_min
+        return (h * 60 + m - self.time_grid.start_hour * 60) // self.time_grid.inst_min

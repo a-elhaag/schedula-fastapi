@@ -1,6 +1,7 @@
 """Pytest fixtures and test configuration."""
 
 import pytest
+from unittest.mock import AsyncMock
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app
@@ -26,9 +27,11 @@ async def test_client():
 
 @pytest.fixture
 async def mock_db():
-    """Mock MongoDB database."""
-    # TODO: Create mock PyMongo async database for testing (mock AsyncDatabase)
-    pass
+    """Mock MongoDB async database."""
+    db = AsyncMock()
+    # Mock the ping command for readiness checks
+    db.command = AsyncMock(return_value=None)
+    return db
 
 
 @pytest.fixture

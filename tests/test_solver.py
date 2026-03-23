@@ -65,7 +65,7 @@ def test_num_slots_per_day():
         rooms_data=[_make_room("r1")],
         weights={},
     )
-    assert solver.num_slots_per_day == 8
+    assert solver.time_grid.num_slots_per_day == 8
 
 
 def test_single_section_schedules():

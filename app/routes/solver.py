@@ -1,8 +1,10 @@
 """Solver route — schedule generation endpoint."""
 
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pymongo.asynchronous.database import AsyncDatabase
@@ -17,13 +19,35 @@ from app.database.queries import (
     get_rooms,
     get_staff,
 )
-from app.models.solver import GenerateScheduleRequest
+from app.models.solver import GenerateScheduleRequest, GenerateScheduleResponse
 from app.services.solver_service import ScheduleSolver
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/schedule", tags=["schedule"])
 
 
-@router.post("/generate", response_model=dict)
+def _resolve_weights(
+    request_weights: Any,
+    db_constraints: dict[str, Any] | None,
+) -> dict[str, int]:
+    """Resolve soft constraint weights: request > DB > config defaults."""
+    weights = {
+        "break_window": settings.soft_weight_break_window,
+        "consecutive_slots": settings.soft_weight_consecutive_slots,
+        "session_spread": settings.soft_weight_session_spread,
+        "campus_clustering": settings.soft_weight_campus_clustering,
+    }
+    if db_constraints:
+        weights.update({k: v for k, v in db_constraints.items() if k in weights and v is not None})
+    if request_weights:
+        weights["break_window"] = request_weights.break_window
+        weights["consecutive_slots"] = request_weights.consecutive_slots
+        weights["session_spread"] = request_weights.session_spread
+        weights["campus_clustering"] = request_weights.campus_clustering
+    return weights
+
+
+@router.post("/generate", response_model=GenerateScheduleResponse)
 async def generate_schedule(
     request: GenerateScheduleRequest,
     db: AsyncDatabase = Depends(get_db),
@@ -54,20 +78,7 @@ async def generate_schedule(
         if not courses:
             raise HTTPException(status_code=400, detail="No courses found for this institution")
 
-        # Soft constraint weights: request > DB > config defaults
-        weights = {
-            "break_window": settings.soft_weight_break_window,
-            "consecutive_slots": settings.soft_weight_consecutive_slots,
-            "session_spread": settings.soft_weight_session_spread,
-            "campus_clustering": settings.soft_weight_campus_clustering,
-        }
-        if db_constraints:
-            weights.update({k: v for k, v in db_constraints.items() if k in weights and v is not None})
-        if request.weights:
-            weights["break_window"] = request.weights.break_window
-            weights["consecutive_slots"] = request.weights.consecutive_slots
-            weights["session_spread"] = request.weights.session_spread
-            weights["campus_clustering"] = request.weights.campus_clustering
+        weights = _resolve_weights(request.weights, db_constraints)
 
         solver = ScheduleSolver(
             time_limit_seconds=settings.solver_time_limit_seconds,
@@ -97,25 +108,26 @@ async def generate_schedule(
         if not schedule_entries:
             warnings.append("No feasible schedule found")
 
-        return {
-            "snapshot_id": str(uuid.uuid4()),
-            "institution_id": request.institution_id,
-            "term_label": request.term_label,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "entries": schedule_entries,
-            "hard_violations": hard_violations,
-            "soft_penalty": soft_penalty,
-            "warnings": warnings,
-            "summary": {
+        return GenerateScheduleResponse(
+            snapshot_id=str(uuid.uuid4()),
+            institution_id=request.institution_id,
+            term_label=request.term_label,
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            entries=schedule_entries,
+            hard_violations=hard_violations,
+            soft_penalty=soft_penalty,
+            warnings=warnings,
+            summary={
                 "total_sections": len(courses),
                 "scheduled_sections": len({e["section_id"] for e in schedule_entries}),
                 "total_staff": len(staff),
                 "total_rooms": len(rooms),
                 "weights": weights,
             },
-        }
+        )
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception(f"Schedule generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Solver error: {str(e)}")

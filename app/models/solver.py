@@ -24,3 +24,37 @@ class GenerateScheduleRequest(BaseModel):
     term_label: str
     weights: Optional[SolverWeights] = None
     section_type_durations: Optional[SectionTypeDurations] = None
+
+
+class ScheduleEntryResponse(BaseModel):
+    """Individual scheduled session."""
+    section_id: str
+    course_name: str
+    section_type: str
+    day_of_week: int
+    start_time: str
+    end_time: str
+    room_id: str
+    assigned_staff: list[str]
+
+
+class SummaryResponse(BaseModel):
+    """Schedule generation summary."""
+    total_sections: int
+    scheduled_sections: int
+    total_staff: int
+    total_rooms: int
+    weights: dict[str, int]
+
+
+class GenerateScheduleResponse(BaseModel):
+    """Complete schedule generation response."""
+    snapshot_id: str
+    institution_id: str
+    term_label: str
+    generated_at: str
+    entries: list[ScheduleEntryResponse]
+    hard_violations: int
+    soft_penalty: float
+    warnings: list[str]
+    summary: SummaryResponse

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     app_name: str = "Schedula Schedule Solver"
     debug: bool = False
     cors_origins: list[str] = Field(default=["*"])
+    log_level: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR)")
 
     # MongoDB
     mongodb_uri: str = Field(

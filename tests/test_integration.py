@@ -4,6 +4,8 @@ import pytest
 import httpx
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
+from app.config import settings
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -12,8 +14,8 @@ from pymongo.asynchronous.mongo_client import AsyncMongoClient
 @pytest.fixture
 async def mongo_db():
     """Connect to MongoDB and get database instance."""
-    client = AsyncMongoClient("mongodb://user:password@localhost:27017")
-    db = client["schedula"]
+    client = AsyncMongoClient(settings.mongodb_uri)
+    db = client[settings.mongodb_db_name]
 
     # Cleanup before test
     await db.drop_collection("institutions")
