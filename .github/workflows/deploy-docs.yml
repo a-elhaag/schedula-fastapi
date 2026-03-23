@@ -34,14 +34,12 @@ jobs:
           pip install mkdocs mkdocs-material pymdown-extensions
 
       - name: Build docs
-        run: |
-          cd docs
-          mkdocs build
+        run: mkdocs build --config-file docs/mkdocs.yml
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs/site'
+          path: 'site'
 
       - name: Deploy to GitHub Pages
         id: deployment
