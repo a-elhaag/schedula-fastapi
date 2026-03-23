@@ -1,5 +1,3 @@
-name: Build and Deploy Documentation
-
 on:
   push:
     branches: [main]
@@ -14,45 +12,21 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: 'pages'
-  cancel-in-progress: false
-
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install mkdocs-material pymdown-extensions mkdocs-awesome-pages-plugin
-
-      - name: Build documentation
-        run: mkdocs build --config-file docs/mkdocs.yml
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'site'
-          artifact_name: 'site'
+    ...
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: site
+        artifact_name: site
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
-        id: deployment
         uses: actions/deploy-pages@v2
         with:
-          artifact_name: 'site'
+          artifact_name: site
