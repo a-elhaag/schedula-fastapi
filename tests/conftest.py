@@ -5,6 +5,16 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 
+# Configure pytest-asyncio for async fixtures and tests
+pytest_plugins = ("pytest_asyncio",)
+
+
+@pytest.fixture(scope="session")
+def event_loop_policy():
+    """Set event loop policy for tests."""
+    import asyncio
+    return asyncio.get_event_loop_policy()
+
 
 @pytest.fixture
 async def test_client():
