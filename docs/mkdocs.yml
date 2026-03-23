@@ -1,5 +1,5 @@
 site_name: Schedula Solver API
-site_description: Complete API documentation for the Schedula schedule solver
+site_description: Campus-wide course scheduling solver for higher education
 site_author: Schedula Team
 site_url: https://a-elhaag.github.io/schedula-fastapi/
 docs_dir: .
@@ -7,28 +7,30 @@ site_dir: ../site
 
 theme:
   name: material
+  logo: https://api.schedula.dev/logo.png
+  favicon: https://api.schedula.dev/favicon.ico
   palette:
     - scheme: light
       primary: blue
-      accent: blue
+      accent: lightblue
       toggle:
         icon: material/lightbulb-outline
         name: Switch to dark mode
     - scheme: dark
       primary: blue
-      accent: blue
+      accent: lightblue
       toggle:
         icon: material/lightbulb
         name: Switch to light mode
   features:
     - navigation.tabs
-    - navigation.sections
     - navigation.top
     - search.suggest
     - search.highlight
     - content.tabs.link
     - content.code.copy
     - content.code.select
+    - toc.follow
 
 markdown_extensions:
   - pymdownx.tabbed:
@@ -37,30 +39,22 @@ markdown_extensions:
       use_pygments: true
   - pymdownx.superfences
   - pymdownx.inlinehilite
-  - pymdownx.snippets
   - tables
-  - footnotes
   - attr_list
-  - md_in_html
   - toc:
-      toc_depth: 2
+      toc_depth: 3
 
 plugins:
   - search
-  - awesome-pages
+  - minify
 
 nav:
-  - Home: index.md
-  - Setup: setup.md
-  - Integration: integration.md
-  - API Reference: api.md
-  - Constraints: constraints.md
-  - Deployment: deployment.md
-  - Testing: testing.md
-  - Troubleshooting: troubleshooting.md
+  - Documentation: index.md
 
 extra:
   version: 0.1.0
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/a-elhaag/schedula-fastapi
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com
