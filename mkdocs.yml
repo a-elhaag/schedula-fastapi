@@ -1,0 +1,32 @@
+site_name: Schedula FastAPI
+site_description: API reference and quickstart for Schedula FastAPI
+site_author: Schedula Team
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  palette:
+    - scheme: light
+      primary: blue
+      accent: lightblue
+    - scheme: dark
+      primary: blue
+      accent: lightblue
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - API Reference: api.md
+  - Deployment: deployment.md
+  - Changelog: changelog.md
