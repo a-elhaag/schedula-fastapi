@@ -34,6 +34,17 @@ jobs:
       - name: Build docs
         run: mkdocs build --config-file mkdocs.yml
 
+      - name: Check GitHub Pages is enabled
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          repo=${{ github.repository }}
+          status_code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$repo/pages)
+          if [ "$status_code" != "200" ]; then
+            echo "GitHub Pages is not enabled for $repo (HTTP $status_code). Skipping Pages deployment."
+            exit 0
+          fi
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
