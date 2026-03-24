@@ -1,5 +1,5 @@
 site_name: Schedula FastAPI
-site_description: API reference and quickstart for Schedula FastAPI
+site_description: Comprehensive backend documentation for Schedula FastAPI
 site_author: Schedula Team
 
 docs_dir: docs
@@ -27,6 +27,11 @@ plugins:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - Architecture: architecture.md
   - API Reference: api.md
+  - Data Models: data-models.md
+  - Configuration: configuration.md
+  - Testing: testing.md
   - Deployment: deployment.md
+  - CI/CD Workflows: workflows.md
   - Changelog: changelog.md
