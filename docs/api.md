@@ -10,9 +10,9 @@ Returns service metadata.
 
 ```json
 {
-	"message": "Schedula Schedule Solver API",
-	"docs": "/docs",
-	"health": "/health"
+  "message": "Schedula Schedule Solver API",
+  "docs": "/docs",
+  "health": "/health"
 }
 ```
 
@@ -24,8 +24,8 @@ Liveness endpoint.
 
 ```json
 {
-	"status": "healthy",
-	"timestamp": "2026-03-24T00:00:00.000000+00:00"
+  "status": "healthy",
+  "timestamp": "2026-03-24T00:00:00.000000+00:00"
 }
 ```
 
@@ -37,8 +37,8 @@ Readiness endpoint with MongoDB connectivity check.
 
 ```json
 {
-	"status": "ready",
-	"database": "connected"
+  "status": "ready",
+  "database": "connected"
 }
 ```
 
@@ -48,9 +48,9 @@ Status: `503`
 
 ```json
 {
-	"status": "not_ready",
-	"database": "disconnected",
-	"error": "..."
+  "status": "not_ready",
+  "database": "disconnected",
+  "error": "..."
 }
 ```
 
@@ -62,19 +62,19 @@ Generate a schedule snapshot from MongoDB input data.
 
 ```json
 {
-	"institution_id": "test-inst-001",
-	"term_label": "fall-2024",
-	"weights": {
-		"break_window": 100,
-		"consecutive_slots": 80,
-		"session_spread": 60,
-		"campus_clustering": 40
-	},
-	"section_type_durations": {
-		"lecture": 120,
-		"lab": 180,
-		"tutorial": 60
-	}
+  "institution_id": "test-inst-001",
+  "term_label": "fall-2024",
+  "weights": {
+    "break_window": 100,
+    "consecutive_slots": 80,
+    "session_spread": 60,
+    "campus_clustering": 40
+  },
+  "section_type_durations": {
+    "lecture": 120,
+    "lab": 180,
+    "tutorial": 60
+  }
 }
 ```
 
@@ -88,37 +88,37 @@ Notes:
 
 ```json
 {
-	"snapshot_id": "f0f2b9fe-8cb0-4f0b-b149-2a204ac4aa8f",
-	"institution_id": "test-inst-001",
-	"term_label": "fall-2024",
-	"generated_at": "2026-03-24T00:00:00.000000+00:00",
-	"entries": [
-		{
-			"section_id": "sec-cs101-lec",
-			"course_name": "Intro to CS",
-			"section_type": "lecture",
-			"day_of_week": 1,
-			"start_time": "09:00",
-			"end_time": "10:00",
-			"room_id": "room-101",
-			"assigned_staff": ["prof-001"]
-		}
-	],
-	"hard_violations": 0,
-	"soft_penalty": 320.0,
-	"warnings": [],
-	"summary": {
-		"total_sections": 3,
-		"scheduled_sections": 3,
-		"total_staff": 2,
-		"total_rooms": 2,
-		"weights": {
-			"break_window": 100,
-			"consecutive_slots": 80,
-			"session_spread": 60,
-			"campus_clustering": 40
-		}
-	}
+  "snapshot_id": "f0f2b9fe-8cb0-4f0b-b149-2a204ac4aa8f",
+  "institution_id": "test-inst-001",
+  "term_label": "fall-2024",
+  "generated_at": "2026-03-24T00:00:00.000000+00:00",
+  "entries": [
+    {
+      "section_id": "sec-cs101-lec",
+      "course_name": "Intro to CS",
+      "section_type": "lecture",
+      "day_of_week": 1,
+      "start_time": "09:00",
+      "end_time": "10:00",
+      "room_id": "room-101",
+      "assigned_staff": ["prof-001"]
+    }
+  ],
+  "hard_violations": 0,
+  "soft_penalty": 320.0,
+  "warnings": [],
+  "summary": {
+    "total_sections": 3,
+    "scheduled_sections": 3,
+    "total_staff": 2,
+    "total_rooms": 2,
+    "weights": {
+      "break_window": 100,
+      "consecutive_slots": 80,
+      "session_spread": 60,
+      "campus_clustering": 40
+    }
+  }
 }
 ```
 
