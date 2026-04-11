@@ -40,5 +40,11 @@ class Settings(BaseSettings):
     soft_weight_session_spread: int = Field(default=60)
     soft_weight_campus_clustering: int = Field(default=40)
 
+    # Development mode
+    # When dev_mode=true, requests with Authorization: Bearer <dev_api_token>
+    # bypass any future auth guards. NEVER enable in production.
+    dev_mode: bool = Field(default=False)
+    dev_api_token: str = Field(default="")
+
 
 settings = Settings()
