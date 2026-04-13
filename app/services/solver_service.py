@@ -225,6 +225,9 @@ class ScheduleSolver:
         """
         H8: sections in same dept with overlapping year levels can't share a time slot.
         H9 propagation: shared lectures also conflict with year-level peers in shared_with depts.
+
+        Optimization: pre-compute year_level sets once; skip pair if same section ID
+        (can happen when a course is in shared_with of another in same dept).
         """
         # Build dept_id → sections (including shared_with registration for H9)
         dept_map: dict[str, list[dict]] = {}
@@ -234,11 +237,18 @@ class ScheduleSolver:
                 dept_map.setdefault(d, []).append(s)
 
         for sections in dept_map.values():
+            # Pre-compute year_level frozensets for O(1) intersection check
+            year_sets = [frozenset(s.get("year_levels", [])) for s in sections]
             n = len(sections)
             for i in range(n):
+                if not year_sets[i]:
+                    continue
                 for j in range(i + 1, n):
                     s1, s2 = sections[i], sections[j]
-                    if not set(s1.get("year_levels", [])) & set(s2.get("year_levels", [])):
+                    # Skip duplicate entries (same section in multiple depts via shared_with)
+                    if s1["_id"] == s2["_id"]:
+                        continue
+                    if not year_sets[i] & year_sets[j]:
                         continue
                     ivs = self._collect_intervals([s1["_id"], s2["_id"]])
                     if len(ivs) > 1:
@@ -390,6 +400,8 @@ class ScheduleSolver:
         solver.parameters.max_time_in_seconds = self.time_limit_seconds
         solver.parameters.num_search_workers = self.num_workers
         solver.parameters.log_search_progress = False
+        # Stop as soon as a good-enough solution is found (reduces wall-clock time)
+        solver.parameters.stop_after_first_solution = not self._has_objective
 
         status = solver.Solve(self.model)
 
