@@ -8,6 +8,8 @@ from typing import Any
 
 from ortools.sat.python import cp_model
 
+from app.services.constraint_validator import ConstraintValidator
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +29,8 @@ class ScheduleSolver:
         self.num_workers = num_workers
         self._has_objective = False
         self._section_index: dict[str, dict] = {}
+        self.validation_errors: list[str] = []
+        self.validation_warnings: dict[str, list[str]] = {}
 
     # ──────────────────────────────────────────────────────────────────────
     # Entry point
@@ -41,12 +45,44 @@ class ScheduleSolver:
         rooms_data: list[dict],
         weights: dict[str, int],
         section_type_durations: dict[str, int] | None = None,
-    ) -> None:
+        enrollments_data: dict[str, dict[str, Any]] | None = None,
+        room_feature_requirements: dict[str, list[str]] | None = None,
+    ) -> tuple[bool, list[str], dict[str, list[str]]]:
+        """
+        Build the constraint model and run validations.
+        
+        Returns:
+            is_feasible: bool - Whether model is buildable
+            critical_errors: list[str] - Hard constraint violations
+            warnings: dict[str, list[str]] - Non-critical issues
+        """
+        # Run pre-solve validations
+        is_feasible, critical_errors, warnings = ConstraintValidator.run_all_validations(
+            courses=courses_data,
+            staff_data=staff_data,
+            rooms=rooms_data,
+            enrollments=enrollments_data,
+            room_feature_requirements=room_feature_requirements,
+        )
+        
+        if critical_errors:
+            logger.error(f"Hard constraint violations detected:\n" + "\n".join(critical_errors))
+            self.validation_errors = critical_errors
+            return False, critical_errors, warnings
+        
+        if warnings:
+            for constraint, msgs in warnings.items():
+                logger.warning(f"{constraint} warnings:\n" + "\n".join(msgs))
+        
+        self.validation_errors = []
+        self.validation_warnings = warnings
+        
         self.model = cp_model.CpModel()
         self.courses = courses_data
         self.staff_members = staff_data
         self.rooms = rooms_data
         self.weights = weights
+        self.enrollments = enrollments_data or {}
         self.availability_map: dict[str, dict] = {
             a["staff_id"]: a for a in availability_data
         }
@@ -81,6 +117,8 @@ class ScheduleSolver:
 
         # Hard constraints
         self._add_h1_h2_no_overlap()
+        self._add_h3_room_capacity()  # NEW: Hard constraint enforcement
+        self._add_h4_required_room_labels()  # NEW: Hard constraint enforcement
         self._add_h5_staff_day_off()
         self._add_h8_year_level_conflicts()
 
@@ -94,6 +132,8 @@ class ScheduleSolver:
         if penalty:
             self.model.Minimize(sum(penalty))
             self._has_objective = True
+        
+        return True, [], warnings
 
     # ──────────────────────────────────────────────────────────────────────
     # Pre-computation
@@ -204,6 +244,116 @@ class ScheduleSolver:
             ivs = self._collect_intervals(sec_ids)
             if len(ivs) > 1:
                 self.model.AddNoOverlap(ivs)
+
+    def _add_h3_room_capacity(self) -> None:
+        """
+        H3: Room Capacity Constraint (Hard)
+        Enforce: assigned_room.capacity >= section.enrollment
+        
+        Uses enrollment data if available, else uses section.capacity field.
+        This is a hard constraint — if infeasible, solver returns INFEASIBLE.
+        """
+        for section in self.courses:
+            sid = section["_id"]
+            room_ids = self.section_rooms.get(sid, [])
+            
+            if not room_ids:
+                # Pre-filtering already skipped this section
+                continue
+            
+            # Get required capacity: prefer actual enrollment, fall back to section capacity
+            required_capacity = section["capacity"]
+            if sid in self.enrollments:
+                required_capacity = self.enrollments[sid].get("enrolled_students", section["capacity"])
+            
+            # For each possible room, check capacity
+            room_capacities = {}
+            for room_id in room_ids:
+                room = next((r for r in self.rooms if r["_id"] == room_id), None)
+                if room:
+                    room_capacities[room_id] = room.get("capacity", 0)
+            
+            # Ensure all candidate rooms meet capacity requirement
+            # If any room has capacity < required, remove it from candidates
+            valid_rooms = [
+                r_id for r_id in room_ids
+                if room_capacities.get(r_id, 0) >= required_capacity
+            ]
+            
+            if not valid_rooms:
+                # Pre-filtering should have caught this, but log for auditing
+                logger.warning(
+                    f"H3 violation: Section {section.get('course_name', sid)} "
+                    f"requires capacity {required_capacity}, but pre-filtering found no valid rooms. "
+                    f"This should have been caught during validation."
+                )
+                continue
+            
+            # Add hard constraint: for each session of this section,
+            # the assigned room must have sufficient capacity
+            for k in range(section.get("slots_per_week", 1)):
+                session = self.sessions.get((sid, k))
+                if not session:
+                    continue
+                
+                # room_v must index a room with sufficient capacity
+                room_v = session["room_v"]
+                valid_room_indices = [
+                    i for i, r_id in enumerate(session["room_ids"])
+                    if r_id in valid_rooms
+                ]
+                
+                if valid_room_indices:
+                    # Add constraint: room_v must be one of the valid indices
+                    self.model.AddAllowedAssignments([room_v], [(i,) for i in valid_room_indices])
+
+    def _add_h4_required_room_labels(self) -> None:
+        """
+        H4: Required Room Labels Constraint (Hard)
+        Enforce: if section.required_room_label exists, assigned_room.label must match it.
+        
+        This is a hard constraint — if infeasible, solver returns INFEASIBLE.
+        """
+        for section in self.courses:
+            sid = section["_id"]
+            req_label = section.get("required_room_label")
+            
+            if not req_label:
+                # No label requirement for this section
+                continue
+            
+            room_ids = self.section_rooms.get(sid, [])
+            if not room_ids:
+                continue
+            
+            # Find rooms with matching label
+            labeled_rooms = [
+                r_id for r_id in room_ids
+                if any(r["_id"] == r_id and r.get("label") == req_label for r in self.rooms)
+            ]
+            
+            if not labeled_rooms:
+                logger.warning(
+                    f"H4 violation: Section {section.get('course_name', sid)} "
+                    f"requires label '{req_label}', but pre-filtering found no matching rooms. "
+                    f"This should have been caught during validation."
+                )
+                continue
+            
+            # Add hard constraint for each session
+            for k in range(section.get("slots_per_week", 1)):
+                session = self.sessions.get((sid, k))
+                if not session:
+                    continue
+                
+                room_v = session["room_v"]
+                labeled_room_indices = [
+                    i for i, r_id in enumerate(session["room_ids"])
+                    if r_id in labeled_rooms
+                ]
+                
+                if labeled_room_indices:
+                    self.model.AddAllowedAssignments([room_v], [(i,) for i in labeled_room_indices])
 
     def _add_h5_staff_day_off(self) -> None:
         """H5: staff weekly day-off is fully blocked."""
@@ -394,8 +544,21 @@ class ScheduleSolver:
     # Solve
     # ──────────────────────────────────────────────────────────────────────
 
-    def solve(self) -> tuple[int, float, list[dict[str, Any]]]:
-        """Solve the constraint model and return schedule."""
+    def solve(self) -> tuple[int, float, list[dict[str, Any]], list[str]]:
+        """
+        Solve the constraint model and return schedule.
+        
+        Returns:
+            error_code: int (0=success, 1=hard constraint violation, 2=solver timeout/infeasible)
+            soft_penalty: float
+            entries: list[dict]
+            validation_errors: list[str]
+        """
+        # If validation failed, return immediately
+        if self.validation_errors:
+            logger.error(f"Cannot solve due to validation errors")
+            return 1, float("inf"), [], self.validation_errors
+        
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = self.time_limit_seconds
         solver.parameters.num_search_workers = self.num_workers
@@ -406,11 +569,13 @@ class ScheduleSolver:
         status = solver.Solve(self.model)
 
         if status == cp_model.INFEASIBLE:
-            logger.warning("Solver found problem INFEASIBLE")
-            return 1, float("inf"), []
+            logger.warning("Solver found problem INFEASIBLE (hard constraints cannot be satisfied)")
+            errors = ["Solver could not find a feasible solution. Check that all hard constraints can be satisfied."]
+            return 2, float("inf"), [], errors
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             logger.warning(f"Solver status: {status} (not OPTIMAL/FEASIBLE)")
-            return 1, float("inf"), []
+            errors = [f"Solver returned status {status} (not OPTIMAL/FEASIBLE)"]
+            return 2, float("inf"), [], errors
 
         entries: list[dict[str, Any]] = []
         for (sid, _occ), sess in self.sessions.items():
@@ -436,7 +601,7 @@ class ScheduleSolver:
             })
 
         soft_penalty = solver.ObjectiveValue() if self._has_objective else 0.0
-        return 0, soft_penalty, entries
+        return 0, soft_penalty, entries, []
 
     # ──────────────────────────────────────────────────────────────────────
     # Helpers
