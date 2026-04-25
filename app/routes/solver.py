@@ -18,6 +18,7 @@ from app.database.queries import (
     get_institution,
     get_rooms,
     get_staff,
+    get_enrollments,
 )
 from app.models.solver import GenerateScheduleRequest, GenerateScheduleResponse
 from app.services.solver_service import ScheduleSolver
@@ -56,6 +57,7 @@ async def generate_schedule(
     Generate a constraint-based timetable for the institution.
 
     Reads all data from MongoDB, runs OR-Tools CP-SAT solver, returns snapshot.
+    Validates all hard constraints before attempting to solve.
     FastAPI never writes — Next.js persists the snapshot after coordinator approval.
     """
     try:
@@ -67,16 +69,26 @@ async def generate_schedule(
             )
 
         # Parallel fetch — all collections at once
-        courses, staff, availability, rooms, db_constraints = await asyncio.gather(
+        courses, staff, availability, rooms, db_constraints, enrollments_list = await asyncio.gather(
             get_courses(db, request.institution_id),
             get_staff(db, request.institution_id),
             get_availability(db, request.institution_id, request.term_label),
             get_rooms(db, request.institution_id),
             get_constraints(db, request.institution_id),
+            get_enrollments(db, request.institution_id, request.term_label),
         )
 
         if not courses:
             raise HTTPException(status_code=400, detail="No courses found for this institution")
+
+        # Convert enrollments list to dict: course_id -> enrollment data
+        enrollments_dict = {}
+        for enroll in enrollments_list:
+            course_id = enroll["course_id"]
+            enrollments_dict[course_id] = {
+                "enrolled_students": enroll.get("enrolled_students", 0),
+                "capacity": enroll.get("capacity", 0),
+            }
 
         weights = _resolve_weights(request.weights, db_constraints)
 
@@ -84,7 +96,9 @@ async def generate_schedule(
             time_limit_seconds=settings.solver_time_limit_seconds,
             num_workers=settings.solver_num_workers,
         )
-        solver.build_model(
+        
+        # Build model with validation
+        is_feasible, critical_errors, validation_warnings = solver.build_model(
             institution_data=institution,
             courses_data=courses,
             staff_data=staff,
@@ -96,17 +110,47 @@ async def generate_schedule(
                 if request.section_type_durations
                 else None
             ),
+            enrollments_data=enrollments_dict,
         )
 
-        hard_violations, soft_penalty, schedule_entries = solver.solve()
+        # If validation failed, return error with detailed messages
+        if not is_feasible:
+            warnings = critical_errors
+            return GenerateScheduleResponse(
+                snapshot_id=str(uuid.uuid4()),
+                institution_id=request.institution_id,
+                term_label=request.term_label,
+                generated_at=datetime.now(timezone.utc).isoformat(),
+                entries=[],
+                hard_violations=len(critical_errors),
+                soft_penalty=float("inf"),
+                warnings=warnings,
+                summary={
+                    "total_sections": len(courses),
+                    "scheduled_sections": 0,
+                    "total_staff": len(staff),
+                    "total_rooms": len(rooms),
+                    "weights": weights,
+                    "validation_errors": critical_errors,
+                    "validation_warnings": validation_warnings,
+                },
+            )
+
+        # Solve
+        error_code, soft_penalty, schedule_entries, solve_errors = solver.solve()
 
         warnings = []
-        if hard_violations > 0:
-            warnings.append(f"Schedule has {hard_violations} hard constraint violations")
+        if solve_errors:
+            warnings.extend(solve_errors)
+        if error_code > 0:
+            warnings.append(f"Solver returned error code {error_code}")
         if soft_penalty > 1000:
             warnings.append(f"High soft penalty: {soft_penalty:.0f}")
         if not schedule_entries:
             warnings.append("No feasible schedule found")
+        if validation_warnings:
+            for constraint, msgs in validation_warnings.items():
+                warnings.extend(msgs)
 
         return GenerateScheduleResponse(
             snapshot_id=str(uuid.uuid4()),
@@ -114,7 +158,7 @@ async def generate_schedule(
             term_label=request.term_label,
             generated_at=datetime.now(timezone.utc).isoformat(),
             entries=schedule_entries,
-            hard_violations=hard_violations,
+            hard_violations=error_code,
             soft_penalty=soft_penalty,
             warnings=warnings,
             summary={

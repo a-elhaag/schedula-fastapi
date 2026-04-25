@@ -7,6 +7,9 @@ from app.models.availability import Availability
 from app.models.room import Room
 from app.models.schedule import ScheduleSnapshot
 from app.models.solver import GenerateScheduleRequest
+from app.models.enrollment import Enrollment, EnrollmentUpdate
+from app.models.schedule_revision import ScheduleRevision, ScheduleEntry
+from app.models.conflict_resolution import ConflictResolution
 
 __all__ = [
     "Institution",
@@ -16,4 +19,9 @@ __all__ = [
     "Room",
     "ScheduleSnapshot",
     "GenerateScheduleRequest",
+    "Enrollment",
+    "EnrollmentUpdate",
+    "ScheduleRevision",
+    "ScheduleEntry",
+    "ConflictResolution",
 ]

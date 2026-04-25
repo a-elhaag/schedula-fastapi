@@ -9,6 +9,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.asynchronous.mongo_client import AsyncMongoClient
 
 from app.config import settings
+from app.database.indexes import init_indexes
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,9 @@ async def init_db() -> None:
     try:
         await _state.client.admin.command("ping")
         logger.info(f"MongoDB connected: {settings.mongodb_db_name}")
+        
+        # Initialize indexes for all collections
+        await init_indexes(_state.db)
     except Exception as e:
         logger.error(f"MongoDB connection failed: {e}")
         raise
