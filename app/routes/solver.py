@@ -68,6 +68,27 @@ async def generate_schedule(
                 detail=f"Institution {request.institution_id} not found",
             )
 
+        # Normalize institution fields to what the solver expects
+        _day_name_to_int = {
+            "monday": 0, "tuesday": 1, "wednesday": 2,
+            "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6,
+        }
+        _settings = institution.get("settings") or {}
+        _active_term = institution.get("active_term") or {}
+        _daily_start: str = _settings.get("daily_start", "09:00")
+        _daily_end: str = _settings.get("daily_end", "17:00")
+        _raw_days = _active_term.get("working_days", [0, 1, 2, 3, 4])
+        if _raw_days and isinstance(_raw_days[0], str):
+            _raw_days = [_day_name_to_int.get(d.lower(), 0) for d in _raw_days]
+        institution_normalized = {
+            "_id": institution["_id"],
+            "name": institution.get("name", ""),
+            "working_days": _raw_days,
+            "daily_start_hour": int(_daily_start.split(":")[0]),
+            "daily_end_hour": int(_daily_end.split(":")[0]),
+            "slot_duration_minutes": _settings.get("slot_duration_minutes", 60),
+        }
+
         # Parallel fetch — all collections at once
         courses, staff, availability, rooms, db_constraints, enrollments_list = await asyncio.gather(
             get_courses(db, request.institution_id),
@@ -99,7 +120,7 @@ async def generate_schedule(
         
         # Build model with validation
         is_feasible, critical_errors, validation_warnings = solver.build_model(
-            institution_data=institution,
+            institution_data=institution_normalized,
             courses_data=courses,
             staff_data=staff,
             availability_data=availability,

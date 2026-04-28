@@ -1,5 +1,6 @@
 """Reusable MongoDB async query functions."""
 
+from bson import ObjectId
 from pymongo.asynchronous.database import AsyncDatabase
 from typing import Any
 
@@ -7,20 +8,26 @@ from typing import Any
 _SOFT_DELETE = {"deleted_at": None}
 
 
+def _oid(institution_id: str) -> ObjectId:
+    """Convert institution_id string to ObjectId."""
+    return ObjectId(institution_id)
+
+
 async def get_institution(db: AsyncDatabase, institution_id: str) -> dict[str, Any] | None:
     return await db["institutions"].find_one(
-        {"_id": institution_id, **_SOFT_DELETE},
+        {"_id": _oid(institution_id)},
         projection={
             "_id": 1, "name": 1, "slug": 1,
             "working_days": 1, "daily_start_hour": 1,
             "daily_end_hour": 1, "slot_duration_minutes": 1,
+            "active_term": 1, "settings": 1,
         },
     )
 
 
 async def get_courses(db: AsyncDatabase, institution_id: str) -> list[dict[str, Any]]:
     return await db["courses"].find(
-        {"institution_id": institution_id, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "department_id": 1,
             "course_name": 1, "section_type": 1, "year_levels": 1,
@@ -33,7 +40,7 @@ async def get_courses(db: AsyncDatabase, institution_id: str) -> list[dict[str, 
 
 async def get_staff(db: AsyncDatabase, institution_id: str) -> list[dict[str, Any]]:
     return await db["users"].find(
-        {"institution_id": institution_id, "role": {"$in": ["professor", "ta"]}, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "role": {"$in": ["professor", "ta"]}, **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "department_id": 1,
             "name": 1, "email": 1, "role": 1, "faculty_id": 1,
@@ -45,7 +52,7 @@ async def get_availability(
     db: AsyncDatabase, institution_id: str, term_label: str
 ) -> list[dict[str, Any]]:
     return await db["availability"].find(
-        {"institution_id": institution_id, "term_label": term_label, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "staff_id": 1, "term_label": 1,
             "weekly_day_off": 1, "preferred_break_windows": 1,
@@ -55,7 +62,7 @@ async def get_availability(
 
 async def get_rooms(db: AsyncDatabase, institution_id: str) -> list[dict[str, Any]]:
     return await db["rooms"].find(
-        {"institution_id": institution_id, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "faculty_id": 1,
             "name": 1, "label": 1, "capacity": 1, "features": 1,
@@ -66,7 +73,7 @@ async def get_rooms(db: AsyncDatabase, institution_id: str) -> list[dict[str, An
 async def get_constraints(db: AsyncDatabase, institution_id: str) -> dict[str, Any] | None:
     """Get soft constraint weights for an institution."""
     return await db["constraints"].find_one(
-        {"institution_id": institution_id, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), **_SOFT_DELETE},
         projection={
             "_id": 0,
             "break_window": 1, "consecutive_slots": 1,
@@ -84,7 +91,7 @@ async def get_enrollment(
 ) -> dict[str, Any] | None:
     """Get enrollment for a specific course."""
     return await db["enrollments"].find_one(
-        {"institution_id": institution_id, "term_label": term_label, "course_id": course_id, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, "course_id": course_id, **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "term_label": 1, "course_id": 1,
             "enrolled_students": 1, "capacity": 1, "created_at": 1, "updated_at": 1,
@@ -97,7 +104,7 @@ async def get_enrollments(
 ) -> list[dict[str, Any]]:
     """Get all enrollments for a term."""
     return await db["enrollments"].find(
-        {"institution_id": institution_id, "term_label": term_label, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "term_label": 1, "course_id": 1,
             "enrolled_students": 1, "capacity": 1, "created_at": 1, "updated_at": 1,
@@ -125,7 +132,7 @@ async def update_enrollment(
     update_data["updated_at"] = datetime.utcnow()
     
     result = await db["enrollments"].update_one(
-        {"institution_id": institution_id, "term_label": term_label, "course_id": course_id, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, "course_id": course_id, **_SOFT_DELETE},
         {"$set": update_data},
     )
     return result.matched_count > 0
@@ -137,7 +144,7 @@ async def delete_enrollment(
     """Soft delete an enrollment. Returns True if found."""
     from datetime import datetime
     result = await db["enrollments"].update_one(
-        {"institution_id": institution_id, "term_label": term_label, "course_id": course_id, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, "course_id": course_id, **_SOFT_DELETE},
         {"$set": {"deleted_at": datetime.utcnow()}},
     )
     return result.matched_count > 0
@@ -152,7 +159,7 @@ async def get_schedule_revision(
 ) -> dict[str, Any] | None:
     """Get a specific schedule revision."""
     return await db["schedule_revisions"].find_one(
-        {"institution_id": institution_id, "term_label": term_label, "revision_number": revision_number, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, "revision_number": revision_number, **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "term_label": 1, "revision_number": 1,
             "published_at": 1, "published_by": 1, "entries": 1,
@@ -166,7 +173,7 @@ async def get_latest_schedule_revision(
 ) -> dict[str, Any] | None:
     """Get the latest (highest revision number) schedule."""
     revisions = await db["schedule_revisions"].find(
-        {"institution_id": institution_id, "term_label": term_label, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "term_label": 1, "revision_number": 1,
             "published_at": 1, "published_by": 1, "entries": 1,
@@ -183,7 +190,7 @@ async def get_schedule_revisions(
 ) -> list[dict[str, Any]]:
     """Get all schedule revisions for a term, ordered by revision number (newest first)."""
     return await db["schedule_revisions"].find(
-        {"institution_id": institution_id, "term_label": term_label, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "term_label": 1, "revision_number": 1,
             "published_at": 1, "published_by": 1, "hard_violations": 1,
@@ -207,7 +214,7 @@ async def delete_schedule_revision(
     """Soft delete a schedule revision. Returns True if found."""
     from datetime import datetime
     result = await db["schedule_revisions"].update_one(
-        {"institution_id": institution_id, "term_label": term_label, "revision_number": revision_number, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, "revision_number": revision_number, **_SOFT_DELETE},
         {"$set": {"deleted_at": datetime.utcnow()}},
     )
     return result.matched_count > 0
@@ -250,7 +257,7 @@ async def get_conflict_resolutions_by_term(
 ) -> list[dict[str, Any]]:
     """Get all conflict resolutions for a term."""
     return await db["conflict_resolutions"].find(
-        {"institution_id": institution_id, "term_label": term_label, **_SOFT_DELETE},
+        {"institution_id": _oid(institution_id), "term_label": term_label, **_SOFT_DELETE},
         projection={
             "_id": 1, "schedule_revision_id": 1, "conflict_type": 1,
             "affected_sections": 1, "description": 1, "resolution_action": 1,
