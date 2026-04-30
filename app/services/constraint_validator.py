@@ -20,38 +20,31 @@ class ConstraintValidator:
     ) -> tuple[bool, list[str]]:
         """
         H3: Room Capacity Constraint
-        Check: For each section, there exists at least one room with capacity >= section.enrollment.
-        
-        If enrollments provided: checks against actual enrollment numbers.
-        If not provided: checks against course section capacity field.
-        
+        Check: For each section, there exists at least one room with groups_capacity >= section.num_groups.
+
         Returns (is_valid, error_messages)
         """
         errors = []
-        
+
         for course in courses:
             section_id = course["_id"]
-            # Use actual enrollment if available, else use capacity field
-            if enrollments and section_id in enrollments:
-                required_capacity = enrollments[section_id].get("enrolled_students", 0)
-            else:
-                required_capacity = course.get("capacity", 0)
-            
+            required_groups = course.get("num_groups", 1)
+
             # Find compatible rooms
             compatible_rooms = [
                 r for r in rooms
-                if r.get("capacity", 0) >= required_capacity
+                if r.get("groups_capacity", 0) >= required_groups
             ]
-            
+
             if not compatible_rooms:
-                room_caps = [r.get("capacity", 0) for r in rooms]
+                room_caps = [r.get("groups_capacity", 0) for r in rooms]
                 max_cap = max(room_caps) if room_caps else 0
                 errors.append(
                     f"H3 VIOLATION: Section {course.get('course_name', section_id)} "
-                    f"requires capacity {required_capacity}, but max available is {max_cap}. "
-                    f"Add larger rooms or reduce enrollment."
+                    f"requires {required_groups} group(s), but max available is {max_cap}. "
+                    f"Add rooms with higher groups_capacity or reduce num_groups."
                 )
-        
+
         return len(errors) == 0, errors
 
     @staticmethod
@@ -182,35 +175,6 @@ class ConstraintValidator:
         return True, []
 
     @staticmethod
-    def validate_enrollment_capacity_alignment(
-        courses: list[dict[str, Any]],
-        rooms: list[dict[str, Any]],
-        enrollments: dict[str, dict[str, Any]],
-    ) -> tuple[bool, list[str]]:
-        """
-        Bonus: Validate that course capacity fields align with room availability.
-        Checks for cases where course.capacity > max available room capacity.
-        
-        Returns (is_valid, error_messages)
-        """
-        errors = []
-        max_room_capacity = max(r.get("capacity", 0) for r in rooms) if rooms else 0
-        
-        for course in courses:
-            section_id = course["_id"]
-            course_capacity = course.get("capacity", 0)
-            
-            # Check if course capacity exceeds max room
-            if course_capacity > max_room_capacity:
-                errors.append(
-                    f"CAPACITY MISMATCH: {course.get('course_name', section_id)} "
-                    f"has capacity {course_capacity}, but max room capacity is {max_room_capacity}. "
-                    f"Either reduce course capacity or add larger rooms."
-                )
-        
-        return len(errors) == 0, errors
-
-    @staticmethod
     def run_all_validations(
         courses: list[dict[str, Any]],
         staff_data: list[dict[str, Any]],
@@ -256,13 +220,6 @@ class ConstraintValidator:
         )
         if h7_errors:
             warnings["h7_overlap"] = h7_errors
-        
-        # Bonus: Enrollment/capacity alignment
-        enroll_valid, enroll_errors = ConstraintValidator.validate_enrollment_capacity_alignment(
-            courses, rooms, enrollments or {}
-        )
-        if not enroll_valid:
-            critical_errors.extend(enroll_errors)
-        
-        is_valid = h3_valid and h4_valid and enroll_valid
+
+        is_valid = h3_valid and h4_valid
         return is_valid, critical_errors, warnings

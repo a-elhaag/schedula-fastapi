@@ -16,6 +16,7 @@ class CourseSection(BaseModel):
     slots_per_week: int = Field(ge=1, le=7)
     slot_duration_minutes: Optional[int] = None
     capacity: int = Field(ge=1)
+    num_groups: int = Field(ge=1, description="Number of parallel groups this section covers")
     required_room_label: Optional[str] = None
     assigned_staff: list[str] = Field(default=[], description="Staff IDs assigned to this section")
     shared_with: list[str] = Field(

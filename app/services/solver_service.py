@@ -143,11 +143,11 @@ class ScheduleSolver:
         """H3 + H4: pre-filter compatible rooms per section."""
         self.section_rooms: dict[str, list[str]] = {}
         for s in self.courses:
-            cap = s["capacity"]
+            num_groups = s.get("num_groups", 1)
             req = s.get("required_room_label")
             self.section_rooms[s["_id"]] = [
                 r["_id"] for r in self.rooms
-                if r["capacity"] >= cap and (not req or r.get("label") == req)
+                if r.get("groups_capacity", 0) >= num_groups and (not req or r.get("label") == req)
             ]
 
     def _build_staff_index(self) -> None:
@@ -248,61 +248,56 @@ class ScheduleSolver:
     def _add_h3_room_capacity(self) -> None:
         """
         H3: Room Capacity Constraint (Hard)
-        Enforce: assigned_room.capacity >= section.enrollment
-        
-        Uses enrollment data if available, else uses section.capacity field.
+        Enforce: assigned_room.groups_capacity >= section.num_groups
+
         This is a hard constraint — if infeasible, solver returns INFEASIBLE.
         """
         for section in self.courses:
             sid = section["_id"]
             room_ids = self.section_rooms.get(sid, [])
-            
+
             if not room_ids:
                 # Pre-filtering already skipped this section
                 continue
-            
-            # Get required capacity: prefer actual enrollment, fall back to section capacity
-            required_capacity = section["capacity"]
-            if sid in self.enrollments:
-                required_capacity = self.enrollments[sid].get("enrolled_students", section["capacity"])
-            
-            # For each possible room, check capacity
+
+            required_groups = section.get("num_groups", 1)
+
+            # For each possible room, check groups capacity
             room_capacities = {}
             for room_id in room_ids:
                 room = next((r for r in self.rooms if r["_id"] == room_id), None)
                 if room:
-                    room_capacities[room_id] = room.get("capacity", 0)
-            
-            # Ensure all candidate rooms meet capacity requirement
-            # If any room has capacity < required, remove it from candidates
+                    room_capacities[room_id] = room.get("groups_capacity", 0)
+
+            # Ensure all candidate rooms meet group capacity requirement
             valid_rooms = [
                 r_id for r_id in room_ids
-                if room_capacities.get(r_id, 0) >= required_capacity
+                if room_capacities.get(r_id, 0) >= required_groups
             ]
-            
+
             if not valid_rooms:
                 # Pre-filtering should have caught this, but log for auditing
                 logger.warning(
                     f"H3 violation: Section {section.get('course_name', sid)} "
-                    f"requires capacity {required_capacity}, but pre-filtering found no valid rooms. "
+                    f"requires {required_groups} group(s), but pre-filtering found no valid rooms. "
                     f"This should have been caught during validation."
                 )
                 continue
-            
+
             # Add hard constraint: for each session of this section,
-            # the assigned room must have sufficient capacity
+            # the assigned room must have sufficient group capacity
             for k in range(section.get("slots_per_week", 1)):
                 session = self.sessions.get((sid, k))
                 if not session:
                     continue
-                
-                # room_v must index a room with sufficient capacity
+
+                # room_v must index a room with sufficient group capacity
                 room_v = session["room_v"]
                 valid_room_indices = [
                     i for i, r_id in enumerate(session["room_ids"])
                     if r_id in valid_rooms
                 ]
-                
+
                 if valid_room_indices:
                     # Add constraint: room_v must be one of the valid indices
                     self.model.AddAllowedAssignments([room_v], [(i,) for i in valid_room_indices])

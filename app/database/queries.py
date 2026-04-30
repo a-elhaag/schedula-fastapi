@@ -32,7 +32,7 @@ async def get_courses(db: AsyncDatabase, institution_id: str) -> list[dict[str, 
             "_id": 1, "institution_id": 1, "department_id": 1,
             "course_name": 1, "section_type": 1, "year_levels": 1,
             "slots_per_week": 1, "slot_duration_minutes": 1,
-            "capacity": 1, "required_room_label": 1, "shared_with": 1,
+            "capacity": 1, "num_groups": 1, "required_room_label": 1, "shared_with": 1,
             "assigned_staff": 1,
         },
     ).to_list(None)
@@ -65,7 +65,7 @@ async def get_rooms(db: AsyncDatabase, institution_id: str) -> list[dict[str, An
         {"institution_id": _oid(institution_id), **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "faculty_id": 1,
-            "name": 1, "label": 1, "capacity": 1, "features": 1,
+            "name": 1, "label": 1, "room_type": 1, "lab_type": 1, "groups_capacity": 1, "features": 1,
         },
     ).to_list(None)
 
