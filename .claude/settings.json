@@ -6,7 +6,9 @@
       "Bash(python3 -c \"from app.models.room import Room; print\\('✓ Room imports OK'\\)\")",
       "Bash(python3 -c \"from app.services.constraint_validator import ConstraintValidator; print\\('✓ ConstraintValidator imports OK'\\)\")",
       "Bash(python3 -c \"from app.services.solver_service import ScheduleSolver; print\\('✓ ScheduleSolver imports OK'\\)\")",
-      "mcp__code-review-graph__build_or_update_graph_tool"
+      "mcp__code-review-graph__build_or_update_graph_tool",
+      "mcp__code-review-graph__query_graph_tool",
+      "mcp__code-review-graph__semantic_search_nodes_tool"
     ]
   }
 }

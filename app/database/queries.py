@@ -26,16 +26,52 @@ async def get_institution(db: AsyncDatabase, institution_id: str) -> dict[str, A
 
 
 async def get_courses(db: AsyncDatabase, institution_id: str) -> list[dict[str, Any]]:
-    return await db["courses"].find(
+    raw_courses = await db["courses"].find(
         {"institution_id": _oid(institution_id), **_SOFT_DELETE},
         projection={
             "_id": 1, "institution_id": 1, "department_id": 1,
-            "course_name": 1, "section_type": 1, "year_levels": 1,
-            "slots_per_week": 1, "slot_duration_minutes": 1,
-            "capacity": 1, "num_groups": 1, "required_room_label": 1, "shared_with": 1,
+            "name": 1, "code": 1, "credit_hours": 1,
+            "year_levels": 1, "num_sections": 1,
+            "section_types": 1,
+            "slots_per_week": 1,
+            "capacity": 1, "required_room_label": 1, "shared_with": 1,
             "assigned_staff": 1,
         },
     ).to_list(None)
+
+    # Expand each course into multiple CourseSection objects (one per section_type)
+    expanded_sections = []
+    for course in raw_courses:
+        section_types = course.get("section_types", [])
+        year_levels = course.get("year_levels", [1])
+        slots_per_week = course.get("slots_per_week", 1)
+        capacity = course.get("capacity", 30)
+        course_id = str(course["_id"])
+
+        # If no section_types defined, create default lecture section
+        if not section_types:
+            section_types = [{"type": "lecture", "duration_minutes": 90}]
+
+        # Create one CourseSection per section_type
+        for section_type_obj in section_types:
+            section = {
+                "_id": f"{course_id}_{section_type_obj['type']}",
+                "institution_id": course["institution_id"],
+                "department_id": course.get("department_id"),
+                "course_name": course.get("name") or course.get("course_name", ""),
+                "section_type": section_type_obj["type"],
+                "slot_duration_minutes": section_type_obj.get("duration_minutes"),
+                "year_levels": year_levels,
+                "slots_per_week": slots_per_week,
+                "capacity": capacity,
+                "num_groups": course.get("num_sections", 1),
+                "required_room_label": course.get("required_room_label"),
+                "shared_with": course.get("shared_with", []),
+                "assigned_staff": course.get("assigned_staff", []),
+            }
+            expanded_sections.append(section)
+
+    return expanded_sections
 
 
 async def get_staff(db: AsyncDatabase, institution_id: str) -> list[dict[str, Any]]:
